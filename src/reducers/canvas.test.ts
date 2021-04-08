@@ -156,6 +156,21 @@ describe('canvas reducer', () => {
       })
     })
 
+    describe('nodesがない場合', () => {
+      it('Stateに変化がない', () => {
+        expect(
+          canvasReducer(
+            {
+              ...defaultState,
+            },
+            dragStart(),
+          ),
+        ).toEqual({
+          ...defaultState,
+        })
+      })
+    })
+
     describe('要素が一つ', () => {
       const nodes: { [key: string]: TNode } = {
         '0': {
@@ -549,6 +564,91 @@ describe('canvas reducer', () => {
           nodes,
           selectedNodeId: undefined,
           cursorPoint: { x: 300, y: 100 },
+        })
+      })
+    })
+
+    describe('リサイズ中のNodeや移動中のNodeがある場合', () => {
+      const nodes: { [key: string]: TNode } = {
+        '0': {
+          id: '0',
+          parentid: undefined,
+          type: 'View',
+          name: '0',
+          left: 0,
+          top: 0,
+          right: undefined,
+          bottom: undefined,
+          width: 375,
+          height: 812,
+          background: '',
+          children: ['1', '2'],
+        },
+        '1': {
+          id: '1',
+          parentid: '0',
+          type: 'View',
+          name: '0',
+          left: 0,
+          top: 0,
+          right: undefined,
+          bottom: undefined,
+          width: 200,
+          height: 200,
+          background: '',
+          children: [],
+        },
+        '2': {
+          id: '2',
+          parentid: '0',
+          type: 'View',
+          name: '0',
+          left: 0,
+          top: 200,
+          right: undefined,
+          bottom: undefined,
+          width: 200,
+          height: 200,
+          background: '',
+          children: [],
+        },
+      }
+      it('リサイズ中のNodeがある場合、選択できない', () => {
+        expect(
+          canvasReducer(
+            {
+              ...defaultState,
+              nodes,
+              resizingNode: nodes['1'],
+              cursorPoint: { x: 0, y: 0 },
+            },
+            dragStart(),
+          ),
+        ).toEqual({
+          ...defaultState,
+          nodes,
+          resizingNode: nodes['1'],
+          cursorPoint: { x: 0, y: 0 },
+        })
+      })
+
+      it('移動中のNodeがある場合、選択できない', () => {
+        expect(
+          canvasReducer(
+            {
+              ...defaultState,
+              nodes,
+              movingNode: nodes['1'],
+              cursorPoint: { x: 0, y: 0 },
+            },
+            dragStart(),
+          ),
+        ).toEqual({
+          ...defaultState,
+          nodes,
+          movingNode: nodes['1'],
+          selectedNodeId: undefined,
+          cursorPoint: { x: 0, y: 0 },
         })
       })
     })

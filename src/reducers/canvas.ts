@@ -120,6 +120,14 @@ const convertBottom = (node: TNode, top: number, height: number) => {
   }
 }
 
+const hasNodes = (state: TCavas) => Object.keys(state.nodes).length > 0
+
+const hasDraggingNode = (state: TCavas) =>
+  state.movingNode || state.resizingNode
+
+const isEnabledDragStart = (state: TCavas) =>
+  hasNodes(state) && !hasDraggingNode(state)
+
 export const canvasSlice = createSlice({
   name: 'canvas',
   initialState,
@@ -197,55 +205,47 @@ export const canvasSlice = createSlice({
       state.scale = newScale
     },
     dragStart: (state) => {
-      if (state.movingNode || state.resizingNode) {
-        return
-      }
+      if (!isEnabledDragStart(state)) return
+
       const cursor = state.cursorPoint
       const scale = state.scale
       const selectedid = state.selectedNodeId
+      const getNode = (id: string) => state.nodes[id]
       if (selectedid) {
         const direction = cursorOnResizableNodeEdge(
           cursor,
           scale,
           selectedid,
-          (id) => state.nodes[id],
+          getNode,
         )
         if (direction) {
           state.resizingNode = state.nodes[selectedid]
           state.resizingDirection = direction
           return
-        } else {
-          const cursorOnMovable = cursorOnMovableNode(
-            cursor,
-            scale,
-            selectedid,
-            (id) => state.nodes[id],
-          )
-          if (cursorOnMovable) {
-            const childid = getChildInNode(
-              cursor,
-              scale,
-              selectedid,
-              (id) => state.nodes[id],
-            )
-            if (childid) {
-              state.movingNode = state.nodes[childid]
-              state.selectedNodeId = childid
-            } else {
-              state.movingNode = state.nodes[selectedid]
-              state.selectedNodeId = selectedid
-            }
-            return
+        }
+
+        const cursorOnMovable = cursorOnMovableNode(
+          cursor,
+          scale,
+          selectedid,
+          getNode,
+        )
+        if (cursorOnMovable) {
+          const childid = getChildInNode(cursor, scale, selectedid, getNode)
+          if (childid) {
+            state.movingNode = state.nodes[childid]
+            state.selectedNodeId = childid
+          } else {
+            state.movingNode = state.nodes[selectedid]
+            state.selectedNodeId = selectedid
           }
+
+          return
         }
       }
-      const rootnodeid = '0'
-      const id = getChildInNode(
-        cursor,
-        scale,
-        rootnodeid,
-        (id) => state.nodes[id],
-      )
+
+      const rootid = '0'
+      const id = getChildInNode(cursor, scale, rootid, getNode)
       if (id) {
         state.movingNode = state.nodes[id]
         state.selectedNodeId = id

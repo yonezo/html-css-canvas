@@ -17,7 +17,7 @@ export const cursorOnResizableNodeEdge = (
 ): Direction | undefined => {
   const node = getNode(resizableNodeId)
   const { left, top } = getAbsoluteOriginOnRoot(scale, node, getNode)
-  const { width, height } = getSizeOnCanvas(scale, node)
+  const { width, height } = getSize(scale, node)
   return getDirectionOfCursorIntersectedResizableEdge(cursor, {
     left: Math.round(left),
     top: Math.round(top),
@@ -43,7 +43,7 @@ export const cursorOnMovableNode = (
 ): boolean => {
   const node = getNode(movableNodeId)
   const { left, top } = getAbsoluteOriginOnRoot(scale, node, getNode)
-  const { width, height } = getSizeOnCanvas(scale, node)
+  const { width, height } = getSize(scale, node)
   return cursorIntersectedFrameWithoutResizableEdge(cursor, {
     left: Math.round(left),
     top: Math.round(top),
@@ -69,7 +69,7 @@ export const cursorOnResizableNode = (
 ): boolean => {
   const node = getNode(resizableNodeId)
   const { left, top } = getAbsoluteOriginOnRoot(scale, node, getNode)
-  const { width, height } = getSizeOnCanvas(scale, node)
+  const { width, height } = getSize(scale, node)
   return cursorIntersectedFrameWithResizableEdge(cursor, {
     left: Math.round(left),
     top: Math.round(top),
@@ -95,7 +95,7 @@ export const cursorOnNode = (
 ): boolean => {
   const node = getNode(nodeId)
   const { left, top } = getAbsoluteOriginOnRoot(scale, node, getNode)
-  const { width, height } = getSizeOnCanvas(scale, node)
+  const { width, height } = getSize(scale, node)
   return cursorIntersectedFrame(cursor, {
     left: Math.round(left),
     top: Math.round(top),
@@ -272,22 +272,20 @@ const getDirectionOfCursorIntersectedResizableEdge = (
   }
 }
 
-const getAncestorPoint = (
+const getAddedAncestorPoint = (
   node: TNode,
-  parentNode: (parentid: string) => TNode,
+  getNode: (id: string) => TNode,
 ): { left: number; top: number } | undefined => {
   const parentid = node.parentid
-  const parent = parentid ? parentNode(parentid) : undefined
+  const parent = parentid ? getNode(parentid) : undefined
   if (parent) {
     const parentLeft = parent.left ?? 0
     const parentTop = parent.top ?? 0
-    const ancestorPoint = getAncestorPoint(parent, parentNode)
-    if (ancestorPoint) {
-      const grandParentLeft = ancestorPoint.left ?? 0
-      const grandParentTop = ancestorPoint.top ?? 0
+    const addedPoint = getAddedAncestorPoint(parent, getNode)
+    if (addedPoint) {
       return {
-        left: parentLeft + grandParentLeft,
-        top: parentTop + grandParentTop,
+        left: parentLeft + addedPoint.left,
+        top: parentTop + addedPoint.top,
       }
     } else {
       return {
@@ -298,37 +296,86 @@ const getAncestorPoint = (
   }
 }
 
+/**
+ * RootNodeからの絶対値を返す
+ *
+ * @param scale
+ * @param node
+ * @param parentNode
+ * @returns
+ */
 const getAbsoluteOriginOnRoot = (
   scale: number,
   node: TNode,
   parentNode: (parentid: string) => TNode,
 ): { left: number; top: number } => {
-  const ancestorPoint = getAncestorPoint(node, parentNode)
+  const ancestorPoint = getAddedAncestorPoint(node, parentNode)
   const left = ((ancestorPoint?.left ?? 0) + (node.left ?? 0)) * scale
   const top = ((ancestorPoint?.top ?? 0) + (node.top ?? 0)) * scale
   return { left, top }
 }
 
-export const getAbsoluteOriginOnCanvas = (
+/**
+ * Canvasでの絶対座標を返す
+ *
+ * @param scale
+ * @param node
+ * @param parentNode
+ * @returns
+ */
+const getAbsoluteOriginOnCanvas = (
   scale: number,
   offset: { x: number; y: number },
   node: TNode,
-  parentNode: (parentid: string) => TNode,
+  getNode: (id: string) => TNode,
 ): { left: number; top: number } => {
-  const ancestorPoint = getAncestorPoint(node, parentNode)
+  const ancestorPoint = getAddedAncestorPoint(node, getNode)
   const left =
     ((ancestorPoint?.left ?? 0) + (node.left ?? 0) + offset.x) * scale
   const top = ((ancestorPoint?.top ?? 0) + (node.top ?? 0) + offset.y) * scale
   return { left, top }
 }
 
-export const getSizeOnCanvas = (
+/**
+ * 拡大率もとにしたサイズを返す
+ *
+ * @param scale
+ * @param node
+ * @param parentNode
+ * @returns
+ */
+const getSize = (
   scale: number,
   node: TNode,
 ): { width: number; height: number } => {
   const width = node.width * scale
   const height = node.height * scale
   return { width, height }
+}
+
+/**
+ * Canvasでの絶対座標とサイズを返す
+ *
+ * @param scale
+ * @param node
+ * @param parentNode
+ * @returns
+ */
+export const getAbsoluteFrameOnCanvas = (
+  scale: number,
+  offset: { x: number; y: number },
+  id: string,
+  getNode: (id: string) => TNode,
+): { left: number; top: number; width: number; height: number } => {
+  const node = getNode(id)
+  const { left, top } = getAbsoluteOriginOnCanvas(scale, offset, node, getNode)
+  const { width, height } = getSize(scale, node)
+  return {
+    left: Math.round(left),
+    top: Math.round(top),
+    width: Math.round(width),
+    height: Math.round(height),
+  }
 }
 
 const RESIZE_BORDER_SIZE = 7

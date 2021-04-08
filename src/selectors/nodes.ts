@@ -1,30 +1,9 @@
 import { RootState } from '../store'
 import {
   getChildInNode,
-  getAbsoluteOriginOnCanvas,
-  getSizeOnCanvas,
+  getAbsoluteFrameOnCanvas,
   cursorOnResizableNode,
 } from '../utils/node'
-
-const getAbsoluteFrame = (state: RootState, id: string) => {
-  const node = state.canvas.nodes[id]
-  const offset = state.canvas.offset
-  const scale = state.canvas.scale
-  const { left, top } = getAbsoluteOriginOnCanvas(
-    scale,
-    offset,
-    node,
-    (id) => state.canvas.nodes[id],
-  )
-  const { width, height } = getSizeOnCanvas(scale, node)
-  return {
-    node,
-    left: Math.round(left),
-    top: Math.round(top),
-    width: Math.round(width),
-    height: Math.round(height),
-  }
-}
 
 export const selectHighlightNodeAbsoluteFrame = (
   state: RootState,
@@ -33,47 +12,37 @@ export const selectHighlightNodeAbsoluteFrame = (
   | undefined => {
   if (Object.keys(state.canvas.nodes).length === 0) return
 
-  const selectedId = state.canvas.selectedNodeId
+  const selectedid = state.canvas.selectedNodeId
   const scale = state.canvas.scale
   const cursor = state.canvas.cursorPoint
-  if (selectedId) {
+  const offset = state.canvas.offset
+  const getNode = (id: string) => state.canvas.nodes[id]
+  if (selectedid) {
     const cursorOnSelectedNode = cursorOnResizableNode(
       cursor,
       scale,
-      selectedId,
+      selectedid,
       (id) => state.canvas.nodes[id],
     )
 
     if (cursorOnSelectedNode) {
       // 選択しているNode内にcursorがある
-      const childid = getChildInNode(
-        cursor,
-        scale,
-        selectedId,
-        (id) => state.canvas.nodes[id],
-      )
+      const childid = getChildInNode(cursor, scale, selectedid, getNode)
 
       if (childid) {
         // 選択しているNode内の子要素上にcursorがある場合はハイライトさせる
-        const value = getAbsoluteFrame(state, childid)
-        const { node: _, ...rest } = value
-        return { id: childid, ...rest }
+        const frame = getAbsoluteFrameOnCanvas(scale, offset, childid, getNode)
+        return { id: childid, ...frame }
       }
       return
     }
   }
 
   const rootid = '0'
-  const id = getChildInNode(
-    cursor,
-    scale,
-    rootid,
-    (id) => state.canvas.nodes[id],
-  )
+  const id = getChildInNode(cursor, scale, rootid, getNode)
   if (id) {
-    const value = getAbsoluteFrame(state, id)
-    const { node: _, ...rest } = value
-    return { id, ...rest }
+    const frame = getAbsoluteFrameOnCanvas(scale, offset, id, getNode)
+    return { id, ...frame }
   }
 }
 
@@ -81,28 +50,22 @@ export const selectSelectNodeAbsoluteFrame = (
   state: RootState,
 ):
   | {
-      id: string
       left: number
       top: number
       width: number
       height: number
-      relativeLeft: number
-      relativeTop: number
-      relativeWidth: number
-      relativeHeight: number
     }
   | undefined => {
+  const scale = state.canvas.scale
+  const offset = state.canvas.offset
   const id = state.canvas.selectedNodeId
   if (id) {
-    const value = getAbsoluteFrame(state, id)
-    const { node, ...rest } = value
-    return {
+    const frame = getAbsoluteFrameOnCanvas(
+      scale,
+      offset,
       id,
-      ...rest,
-      relativeLeft: node.left ?? 0,
-      relativeTop: node.top ?? 0,
-      relativeWidth: node.width,
-      relativeHeight: node.height,
-    }
+      (id) => state.canvas.nodes[id],
+    )
+    return frame
   }
 }
