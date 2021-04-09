@@ -65,11 +65,12 @@ const canvasState: TCavas = {
   frame: { x: 0, y: 0, width: 0, height: 0 },
   scale: 1,
   offset: { x: 0, y: 0 },
-  selectedNodeId: undefined,
-  movingNode: undefined,
-  resizingNode: undefined,
-  resizingDirection: undefined,
-  cursorPoint: { x: 0, y: 0 },
+  selectedNodeId: null,
+  selectedNodeIds: {},
+  draggingNode: null,
+  resizingNode: null,
+  resizingDirection: null,
+  cursorCoords: { x: 0, y: 0 },
   nodes,
 }
 
@@ -79,7 +80,7 @@ it('カーソルがNodeの上にある場合は、ハイライトさせる', () 
       ...canvasState,
       scale: 1.5,
       offset: { x: 40, y: 40 },
-      cursorPoint: { x: 150, y: 200 },
+      cursorCoords: { x: 150, y: 200 },
     },
   })
   expect(receive).toEqual({
@@ -104,7 +105,7 @@ it('選択している要素の外にカーソルがある場合は、ハイラ�
       ...canvasState,
       selectedNodeId: '2',
       nodes,
-      cursorPoint: { x: 20, y: 20 },
+      cursorCoords: { x: 20, y: 20 },
     },
   })
   expect(receive).toEqual({
@@ -122,7 +123,7 @@ it('選択している要素の子要素の上にカーソルがある場合は�
       ...canvasState,
       selectedNodeId: '1',
       nodes,
-      cursorPoint: { x: 100, y: 150 },
+      cursorCoords: { x: 100, y: 150 },
     },
   })
   expect(receive).toEqual({
@@ -198,7 +199,7 @@ it('他の要素と重なっている場合は上にある要素をハイライ�
     canvas: {
       ...canvasState,
       nodes,
-      cursorPoint: { x: 100, y: 150 },
+      cursorCoords: { x: 100, y: 150 },
     },
   })
   expect(receive).toEqual({
@@ -217,7 +218,7 @@ it('他の要素と重なっている場合は上にある要素をハイライ�
       nodes,
       scale: 1.5,
       offset: { x: 30, y: 30 },
-      cursorPoint: { x: 120, y: 310 },
+      cursorCoords: { x: 120, y: 310 },
     },
   })
   expect(receive).toEqual({
@@ -294,8 +295,130 @@ it('選択状態でリサイズ可能なNodeの下に接しているNodeの上�
       nodes,
       offset: { x: 30, y: 30 },
       selectedNodeId: '3',
-      cursorPoint: { x: 100, y: 202 },
+      cursorCoords: { x: 100, y: 202 },
     },
   })
   expect(receive).toEqual(undefined)
+})
+
+describe('選択しているNode上に子Node以外が重なっている場合', () => {
+  const nodes: { [id: string]: TNode } = {
+    '0': {
+      id: '0',
+      parentid: undefined,
+      type: 'View',
+      name: '0',
+      left: 0,
+      top: 0,
+      right: undefined,
+      bottom: undefined,
+      width: 375,
+      height: 812,
+      background: 'white',
+      children: ['1', '4'],
+    },
+    '1': {
+      id: '1',
+      parentid: '0',
+      type: 'View',
+      name: '1',
+      left: 0,
+      top: 0,
+      right: undefined,
+      bottom: undefined,
+      width: 200,
+      height: 200,
+      background: '#99EEFF',
+      children: ['2'],
+    },
+    '2': {
+      id: '2',
+      parentid: '1',
+      type: 'View',
+      name: '2',
+      left: 10,
+      top: 10,
+      right: undefined,
+      bottom: undefined,
+      width: 180,
+      height: 180,
+      background: '#44CCFF',
+      children: ['3'],
+    },
+    '3': {
+      id: '3',
+      parentid: '2',
+      type: 'View',
+      name: '3',
+      left: 10,
+      top: 10,
+      right: undefined,
+      bottom: undefined,
+      width: 160,
+      height: 160,
+      background: '#47E0FF',
+      children: [],
+    },
+    '4': {
+      id: '1',
+      parentid: '0',
+      type: 'View',
+      name: '4',
+      left: 0,
+      top: 220,
+      right: undefined,
+      bottom: undefined,
+      width: 200,
+      height: 200,
+      background: '#C15F31',
+      children: ['5'],
+    },
+    '5': {
+      id: '5',
+      parentid: '4',
+      type: 'View',
+      name: '5',
+      left: 10,
+      top: -200,
+      right: undefined,
+      bottom: undefined,
+      width: 180,
+      height: 180,
+      background: '#F6D064',
+      children: ['6'],
+    },
+    '6': {
+      id: '6',
+      parentid: '5',
+      type: 'View',
+      name: '6',
+      left: 10,
+      top: 10,
+      right: undefined,
+      bottom: undefined,
+      width: 160,
+      height: 160,
+      background: '#E3D74A',
+      children: [],
+    },
+  }
+
+  it('子Node以外も選択できる', () => {
+    const receive = selectHighlightNodeAbsoluteFrame({
+      canvas: {
+        ...canvasState,
+        nodes,
+        selectedNodeId: '1',
+        cursorCoords: { x: 100, y: 100 },
+      },
+    })
+
+    expect(receive).toEqual({
+      id: '6',
+      left: 20,
+      top: 30,
+      width: 160,
+      height: 160,
+    })
+  })
 })

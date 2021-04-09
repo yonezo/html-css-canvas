@@ -10,8 +10,7 @@ export const SelectNodeOverlay = (): ReactElement<any> | null => {
   const frame = useAppSelector(selectSelectNodeAbsoluteFrame, shallowEqual)
   const enableHighlight = useAppSelector(
     (state) =>
-      state.canvas.movingNode === undefined &&
-      state.canvas.resizingNode === undefined,
+      state.canvas.draggingNode === null && state.canvas.resizingNode === null,
   )
 
   if (!frame) return null

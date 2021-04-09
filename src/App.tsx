@@ -1,5 +1,5 @@
 import React, { ReactElement, useEffect, useRef } from 'react'
-import { batch } from 'react-redux'
+import { batch, shallowEqual } from 'react-redux'
 
 import { Container, MainPane, LeftPane } from './components/Pane'
 import { Canvas } from './containers/canvas'
@@ -8,6 +8,7 @@ import { useAppDispatch, useAppSelector } from './hooks'
 import { addChild, createNode } from './reducers/nodes'
 import { updateFrame, selectNode, initializeNodes } from './reducers/canvas'
 import { useKeyPress } from './hooks/use-key-press'
+import { selectHighlightNodeAbsoluteFrame } from './selectors/nodes'
 
 const App = (): ReactElement<any> => {
   const dispatch = useAppDispatch()
@@ -16,9 +17,10 @@ const App = (): ReactElement<any> => {
   const isEmpty = useAppSelector(
     (state) => Object.keys(state.canvas.nodes).length === 0,
   )
-  const cursorPoint = useAppSelector((state) => state.canvas.cursorPoint)
+  const cursorCoords = useAppSelector((state) => state.canvas.cursorCoords)
   const scale = useAppSelector((state) => state.canvas.scale)
   const offset = useAppSelector((state) => state.canvas.offset)
+  const frame = useAppSelector(selectHighlightNodeAbsoluteFrame, shallowEqual)
 
   useEffect(() => {
     dispatch(selectNode({ id: null }))
@@ -50,9 +52,10 @@ const App = (): ReactElement<any> => {
   return (
     <Container>
       <LeftPane>
-        <p style={{ fontSize: 12 }}>cursor: {JSON.stringify(cursorPoint)}</p>
+        <p style={{ fontSize: 12 }}>cursor: {JSON.stringify(cursorCoords)}</p>
         <p style={{ fontSize: 12 }}>scale: {JSON.stringify(scale)}</p>
         <p style={{ fontSize: 12 }}>offset: {JSON.stringify(offset)}</p>
+        <p style={{ fontSize: 12 }}>hilightId: {JSON.stringify(frame?.id)}</p>
         <button onClick={() => dispatch(initializeNodes())}>InitNode</button>
         <button
           onClick={() => {

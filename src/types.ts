@@ -27,14 +27,17 @@ export type Direction =
   | 'bottomLeft'
   | 'topLeft'
 
+type PointerCoords = { x: number; y: number }
+
 export type TCavas = {
   frame: { x: number; y: number; width: number; height: number }
   scale: number
   offset: { x: number; y: number }
-  selectedNodeId: string | Nullish
-  cursorPoint: { x: number; y: number }
-  resizingNode: TNode | undefined
-  resizingDirection: Direction | undefined
-  movingNode: TNode | undefined
-  nodes: { [key: string]: TNode }
+  cursorCoords: PointerCoords
+  resizingNode: TNode | null
+  draggingNode: TNode | null
+  resizingDirection: Direction | null
+  selectedNodeId: string | null
+  selectedNodeIds: { [id: string]: boolean }
+  nodes: { [id: string]: TNode }
 }

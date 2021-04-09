@@ -6,11 +6,12 @@ const defaultState: TCavas = {
   frame: { x: 0, y: 0, width: 0, height: 0 },
   scale: 1,
   offset: { x: 0, y: 0 },
-  selectedNodeId: undefined,
-  movingNode: undefined,
-  resizingNode: undefined,
-  resizingDirection: undefined,
-  cursorPoint: { x: 0, y: 0 },
+  selectedNodeId: null,
+  selectedNodeIds: {},
+  draggingNode: null,
+  resizingNode: null,
+  resizingDirection: null,
+  cursorCoords: { x: 0, y: 0 },
   nodes: {},
 }
 
@@ -29,7 +30,7 @@ describe('canvas reducer', () => {
         ).toEqual({
           ...defaultState,
           frame: { x: 200, y: 0, width: 400, height: 0 },
-          cursorPoint: { x: -200, y: 0 },
+          cursorCoords: { x: -200, y: 0 },
         })
 
         expect(
@@ -43,7 +44,7 @@ describe('canvas reducer', () => {
         ).toEqual({
           ...defaultState,
           frame: { x: 200, y: 0, width: 400, height: 0 },
-          cursorPoint: { x: -100, y: 100 },
+          cursorCoords: { x: -100, y: 100 },
         })
       })
     })
@@ -62,7 +63,7 @@ describe('canvas reducer', () => {
         ).toEqual({
           ...defaultState,
           frame: { x: 200, y: 0, width: 400, height: 0 },
-          cursorPoint: { x: -200, y: 0 },
+          cursorCoords: { x: -200, y: 0 },
           scale: 0.5,
         })
 
@@ -78,7 +79,7 @@ describe('canvas reducer', () => {
         ).toEqual({
           ...defaultState,
           frame: { x: 200, y: 0, width: 400, height: 0 },
-          cursorPoint: { x: -200, y: 0 },
+          cursorCoords: { x: -200, y: 0 },
           scale: 1.5,
         })
       })
@@ -100,7 +101,7 @@ describe('canvas reducer', () => {
           ...defaultState,
           frame: { x: 200, y: 0, width: 400, height: 0 },
           offset: { x: 200, y: 200 },
-          cursorPoint: { x: -300, y: -100 },
+          cursorCoords: { x: -300, y: -100 },
           scale: 0.5,
         })
 
@@ -118,7 +119,7 @@ describe('canvas reducer', () => {
           ...defaultState,
           frame: { x: 200, y: 0, width: 400, height: 0 },
           offset: { x: 200, y: 200 },
-          cursorPoint: { x: -500, y: -300 },
+          cursorCoords: { x: -500, y: -300 },
           scale: 1.5,
         })
       })
@@ -214,7 +215,7 @@ describe('canvas reducer', () => {
         ).toEqual({
           ...defaultState,
           nodes,
-          movingNode: nodes['1'],
+          draggingNode: nodes['1'],
           selectedNodeId: '1',
         })
       })
@@ -224,14 +225,14 @@ describe('canvas reducer', () => {
           canvasReducer(
             {
               ...defaultState,
-              cursorPoint: { x: 201, y: 200 },
+              cursorCoords: { x: 201, y: 200 },
               nodes,
             },
             dragStart(),
           ),
         ).toEqual({
           ...defaultState,
-          cursorPoint: { x: 201, y: 200 },
+          cursorCoords: { x: 201, y: 200 },
           nodes,
         })
       })
@@ -241,7 +242,7 @@ describe('canvas reducer', () => {
           canvasReducer(
             {
               ...defaultState,
-              cursorPoint: { x: 5, y: 5 },
+              cursorCoords: { x: 5, y: 5 },
               selectedNodeId: '1',
               nodes,
             },
@@ -249,9 +250,9 @@ describe('canvas reducer', () => {
           ),
         ).toEqual({
           ...defaultState,
-          cursorPoint: { x: 5, y: 5 },
+          cursorCoords: { x: 5, y: 5 },
           selectedNodeId: '1',
-          movingNode: nodes['1'],
+          draggingNode: nodes['1'],
           nodes,
         })
       })
@@ -325,7 +326,7 @@ describe('canvas reducer', () => {
           canvasReducer(
             {
               ...defaultState,
-              cursorPoint: { x: 50, y: 250 },
+              cursorCoords: { x: 50, y: 250 },
               selectedNodeId: '1',
               nodes,
             },
@@ -333,9 +334,29 @@ describe('canvas reducer', () => {
           ),
         ).toEqual({
           ...defaultState,
-          cursorPoint: { x: 50, y: 250 },
+          cursorCoords: { x: 50, y: 250 },
           selectedNodeId: '2',
-          movingNode: nodes['2'],
+          draggingNode: nodes['2'],
+          nodes,
+        })
+      })
+
+      it('選択中のNode以外のNode上にカーソルがある状態でドラッグを開始すると、移動ができる', () => {
+        expect(
+          canvasReducer(
+            {
+              ...defaultState,
+              cursorCoords: { x: 50, y: 250 },
+              selectedNodeId: '1',
+              nodes,
+            },
+            dragStart(),
+          ),
+        ).toEqual({
+          ...defaultState,
+          cursorCoords: { x: 50, y: 250 },
+          selectedNodeId: '2',
+          draggingNode: nodes['2'],
           nodes,
         })
       })
@@ -398,7 +419,7 @@ describe('canvas reducer', () => {
         ).toEqual({
           ...defaultState,
           nodes,
-          movingNode: nodes['2'],
+          draggingNode: nodes['2'],
           selectedNodeId: '2',
         })
       })
@@ -489,7 +510,7 @@ describe('canvas reducer', () => {
               ...defaultState,
               nodes,
               selectedNodeId: '1',
-              cursorPoint: { x: 100, y: 150 },
+              cursorCoords: { x: 100, y: 150 },
             },
             dragStart(),
           ),
@@ -497,8 +518,8 @@ describe('canvas reducer', () => {
           ...defaultState,
           nodes,
           selectedNodeId: '3',
-          cursorPoint: { x: 100, y: 150 },
-          movingNode: nodes['3'],
+          cursorCoords: { x: 100, y: 150 },
+          draggingNode: nodes['3'],
         })
       })
     })
@@ -555,15 +576,15 @@ describe('canvas reducer', () => {
               ...defaultState,
               nodes,
               selectedNodeId: '1',
-              cursorPoint: { x: 300, y: 100 },
+              cursorCoords: { x: 300, y: 100 },
             },
             dragStart(),
           ),
         ).toEqual({
           ...defaultState,
           nodes,
-          selectedNodeId: undefined,
-          cursorPoint: { x: 300, y: 100 },
+          selectedNodeId: null,
+          cursorCoords: { x: 300, y: 100 },
         })
       })
     })
@@ -620,7 +641,7 @@ describe('canvas reducer', () => {
               ...defaultState,
               nodes,
               resizingNode: nodes['1'],
-              cursorPoint: { x: 0, y: 0 },
+              cursorCoords: { x: 0, y: 0 },
             },
             dragStart(),
           ),
@@ -628,7 +649,7 @@ describe('canvas reducer', () => {
           ...defaultState,
           nodes,
           resizingNode: nodes['1'],
-          cursorPoint: { x: 0, y: 0 },
+          cursorCoords: { x: 0, y: 0 },
         })
       })
 
@@ -638,17 +659,139 @@ describe('canvas reducer', () => {
             {
               ...defaultState,
               nodes,
-              movingNode: nodes['1'],
-              cursorPoint: { x: 0, y: 0 },
+              draggingNode: nodes['1'],
+              cursorCoords: { x: 0, y: 0 },
             },
             dragStart(),
           ),
         ).toEqual({
           ...defaultState,
           nodes,
-          movingNode: nodes['1'],
-          selectedNodeId: undefined,
-          cursorPoint: { x: 0, y: 0 },
+          draggingNode: nodes['1'],
+          selectedNodeId: null,
+          cursorCoords: { x: 0, y: 0 },
+        })
+      })
+    })
+    describe('複雑なNodeがある場合', () => {
+      const nodes: { [key: string]: TNode } = {
+        '0': {
+          id: '0',
+          parentid: undefined,
+          type: 'View',
+          name: '0',
+          left: 0,
+          top: 0,
+          right: undefined,
+          bottom: undefined,
+          width: 375,
+          height: 812,
+          background: 'white',
+          children: ['1', '4'],
+        },
+        '1': {
+          id: '1',
+          parentid: '0',
+          type: 'View',
+          name: '1',
+          left: 0,
+          top: 0,
+          right: undefined,
+          bottom: undefined,
+          width: 200,
+          height: 200,
+          background: '#99EEFF',
+          children: ['2'],
+        },
+        '2': {
+          id: '2',
+          parentid: '1',
+          type: 'View',
+          name: '2',
+          left: 10,
+          top: 10,
+          right: undefined,
+          bottom: undefined,
+          width: 180,
+          height: 180,
+          background: '#44CCFF',
+          children: ['3'],
+        },
+        '3': {
+          id: '3',
+          parentid: '2',
+          type: 'View',
+          name: '3',
+          left: 10,
+          top: 10,
+          right: undefined,
+          bottom: undefined,
+          width: 160,
+          height: 160,
+          background: '#47E0FF',
+          children: [],
+        },
+        '4': {
+          id: '4',
+          parentid: '0',
+          type: 'View',
+          name: '4',
+          left: 0,
+          top: 220,
+          right: undefined,
+          bottom: undefined,
+          width: 200,
+          height: 200,
+          background: '#C15F31',
+          children: ['5'],
+        },
+        '5': {
+          id: '5',
+          parentid: '4',
+          type: 'View',
+          name: '5',
+          left: 10,
+          top: -200,
+          right: undefined,
+          bottom: undefined,
+          width: 180,
+          height: 180,
+          background: '#F6D064',
+          children: ['6'],
+        },
+        '6': {
+          id: '6',
+          parentid: '5',
+          type: 'View',
+          name: '6',
+          left: 10,
+          top: 10,
+          right: undefined,
+          bottom: undefined,
+          width: 160,
+          height: 160,
+          background: '#E3D74A',
+          children: [],
+        },
+      }
+
+      it('選択中のNodeの子Nodeが別のNodeにある子Nodeと重なっている場合は、選択できない', () => {
+        expect(
+          canvasReducer(
+            {
+              ...defaultState,
+              nodes,
+              selectedNodeId: '2',
+              cursorCoords: { x: 100, y: 100 },
+            },
+            dragStart(),
+          ),
+        ).toEqual({
+          ...defaultState,
+          nodes,
+          draggingNode: nodes['6'],
+          selectedNodeId: '6',
+          cursorCoords: { x: 100, y: 100 },
         })
       })
     })

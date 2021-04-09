@@ -2,7 +2,7 @@ import { RootState } from '../store'
 import {
   getChildInNode,
   getAbsoluteFrameOnCanvas,
-  cursorOnResizableNode,
+  cursorOnResizableNodeEdge,
 } from '../utils/node'
 
 export const selectHighlightNodeAbsoluteFrame = (
@@ -14,32 +14,25 @@ export const selectHighlightNodeAbsoluteFrame = (
 
   const selectedid = state.canvas.selectedNodeId
   const scale = state.canvas.scale
-  const cursor = state.canvas.cursorPoint
+  const cursorCoords = state.canvas.cursorCoords
   const offset = state.canvas.offset
   const getNode = (id: string) => state.canvas.nodes[id]
+  const rootid = '0'
   if (selectedid) {
-    const cursorOnSelectedNode = cursorOnResizableNode(
-      cursor,
-      scale,
-      selectedid,
-      (id) => state.canvas.nodes[id],
-    )
+    const cursorOnEdge =
+      cursorOnResizableNodeEdge(
+        cursorCoords,
+        scale,
+        selectedid,
+        (id) => state.canvas.nodes[id],
+      ) !== undefined
 
-    if (cursorOnSelectedNode) {
-      // 選択しているNode内にcursorがある
-      const childid = getChildInNode(cursor, scale, selectedid, getNode)
-
-      if (childid) {
-        // 選択しているNode内の子要素上にcursorがある場合はハイライトさせる
-        const frame = getAbsoluteFrameOnCanvas(scale, offset, childid, getNode)
-        return { id: childid, ...frame }
-      }
+    if (cursorOnEdge) {
       return
     }
   }
 
-  const rootid = '0'
-  const id = getChildInNode(cursor, scale, rootid, getNode)
+  const id = getChildInNode(cursorCoords, scale, rootid, getNode)
   if (id) {
     const frame = getAbsoluteFrameOnCanvas(scale, offset, id, getNode)
     return { id, ...frame }

@@ -53,32 +53,6 @@ export const cursorOnMovableNode = (
 }
 
 /**
- * カーソルがリサイズ可能なNodeIdの上に存在しているか
- *
- * @param cursor
- * @param scale
- * @param resizableNodeId リサイズ可能なNodeId
- * @param getNode
- * @returns
- */
-export const cursorOnResizableNode = (
-  cursor: { x: number; y: number },
-  scale: number,
-  resizableNodeId: string,
-  getNode: (id: string) => TNode,
-): boolean => {
-  const node = getNode(resizableNodeId)
-  const { left, top } = getAbsoluteOriginOnRoot(scale, node, getNode)
-  const { width, height } = getSize(scale, node)
-  return cursorIntersectedFrameWithResizableEdge(cursor, {
-    left: Math.round(left),
-    top: Math.round(top),
-    width: Math.round(width),
-    height: Math.round(height),
-  })
-}
-
-/**
  * カーソルがNodeIdの上に存在しているか
  *
  * @param cursor
@@ -146,18 +120,6 @@ const cursorIntersectedFrame = (
   const { x, y } = cursor
   const { left, top, width, height } = frame
   return left <= x && x <= left + width && top <= y && y <= top + height
-}
-
-const cursorIntersectedFrameWithResizableEdge = (
-  cursor: { x: number; y: number },
-  frame: { left: number; top: number; width: number; height: number },
-): boolean => {
-  return cursorIntersectedFrame(cursor, {
-    left: frame.left - RESIZE_AREA_SIZE,
-    top: frame.top - RESIZE_AREA_SIZE,
-    width: frame.width + RESIZE_BORDER_SIZE,
-    height: frame.height + RESIZE_BORDER_SIZE,
-  })
 }
 
 const cursorIntersectedFrameWithoutResizableEdge = (

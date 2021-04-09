@@ -25,8 +25,7 @@ export const CanvasEventTarget = (): ReactElement<any> | null => {
   const direction = useAppSelector((state) => state.canvas.resizingDirection)
   const enableHighlight = useAppSelector(
     (state) =>
-      state.canvas.movingNode === undefined &&
-      state.canvas.resizingNode === undefined,
+      state.canvas.draggingNode === null && state.canvas.resizingNode === null,
   )
   const dispatch = useAppDispatch()
 

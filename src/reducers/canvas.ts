@@ -15,11 +15,12 @@ const initialState: TCavas = {
   frame: { x: 0, y: 0, width: 0, height: 0 },
   scale: 1,
   offset: { x: 0, y: 0 },
-  selectedNodeId: undefined,
-  movingNode: undefined,
-  resizingNode: undefined,
-  resizingDirection: undefined,
-  cursorPoint: { x: 0, y: 0 },
+  selectedNodeId: null,
+  selectedNodeIds: {},
+  draggingNode: null,
+  resizingNode: null,
+  resizingDirection: null,
+  cursorCoords: { x: 0, y: 0 },
   nodes: {
     '0': {
       id: '0',
@@ -33,7 +34,7 @@ const initialState: TCavas = {
       width: 375,
       height: 812,
       background: 'white',
-      children: ['1', '2'],
+      children: ['1', '4'],
     },
     '1': {
       id: '1',
@@ -47,34 +48,76 @@ const initialState: TCavas = {
       width: 200,
       height: 200,
       background: '#99EEFF',
-      children: ['3'],
+      children: ['2'],
     },
     '2': {
       id: '2',
-      parentid: '0',
+      parentid: '1',
       type: 'View',
       name: '2',
+      left: 10,
+      top: 10,
+      right: undefined,
+      bottom: undefined,
+      width: 180,
+      height: 180,
+      background: '#44CCFF',
+      children: ['3'],
+    },
+    '3': {
+      id: '3',
+      parentid: '2',
+      type: 'View',
+      name: '3',
+      left: 10,
+      top: 10,
+      right: undefined,
+      bottom: undefined,
+      width: 160,
+      height: 160,
+      background: '#47E0FF',
+      children: [],
+    },
+    '4': {
+      id: '4',
+      parentid: '0',
+      type: 'View',
+      name: '4',
       left: 0,
-      top: 200,
+      top: 220,
       right: undefined,
       bottom: undefined,
       width: 200,
       height: 200,
-      background: '#44CCFF',
-      children: [],
+      background: '#C15F31',
+      children: ['5'],
     },
-    '3': {
-      id: '3',
-      parentid: '1',
+    '5': {
+      id: '5',
+      parentid: '4',
       type: 'View',
-      name: '3',
-      left: 75,
-      top: 100,
+      name: '5',
+      left: 10,
+      top: -200,
       right: undefined,
       bottom: undefined,
-      width: 50,
-      height: 100,
-      background: '#47E0FF',
+      width: 180,
+      height: 180,
+      background: '#F6D064',
+      children: ['6'],
+    },
+    '6': {
+      id: '6',
+      parentid: '5',
+      type: 'View',
+      name: '6',
+      left: 10,
+      top: 10,
+      right: undefined,
+      bottom: undefined,
+      width: 160,
+      height: 160,
+      background: '#E3D74A',
       children: [],
     },
   },
@@ -123,9 +166,9 @@ const convertBottom = (node: TNode, top: number, height: number) => {
 const hasNodes = (state: TCavas) => Object.keys(state.nodes).length > 0
 
 const hasDraggingNode = (state: TCavas) =>
-  state.movingNode || state.resizingNode
+  state.draggingNode || state.resizingNode
 
-const isEnabledDragStart = (state: TCavas) =>
+const isDragStartEnabled = (state: TCavas) =>
   hasNodes(state) && !hasDraggingNode(state)
 
 export const canvasSlice = createSlice({
@@ -155,7 +198,7 @@ export const canvasSlice = createSlice({
       const originY = y - state.frame.y
       const convertedX = originX - state.offset.x * state.scale
       const convertedY = originY - state.offset.y * state.scale
-      state.cursorPoint = { x: convertedX, y: convertedY }
+      state.cursorCoords = { x: convertedX, y: convertedY }
     },
     updateFrame: (
       state,
@@ -205,15 +248,15 @@ export const canvasSlice = createSlice({
       state.scale = newScale
     },
     dragStart: (state) => {
-      if (!isEnabledDragStart(state)) return
+      if (!isDragStartEnabled(state)) return
 
-      const cursor = state.cursorPoint
+      const cursorCoords = state.cursorCoords
       const scale = state.scale
       const selectedid = state.selectedNodeId
       const getNode = (id: string) => state.nodes[id]
       if (selectedid) {
         const direction = cursorOnResizableNodeEdge(
-          cursor,
+          cursorCoords,
           scale,
           selectedid,
           getNode,
@@ -223,38 +266,25 @@ export const canvasSlice = createSlice({
           state.resizingDirection = direction
           return
         }
-
-        const cursorOnMovable = cursorOnMovableNode(
-          cursor,
-          scale,
-          selectedid,
-          getNode,
-        )
-        if (cursorOnMovable) {
-          const childid = getChildInNode(cursor, scale, selectedid, getNode)
-          if (childid) {
-            state.movingNode = state.nodes[childid]
-            state.selectedNodeId = childid
-          } else {
-            state.movingNode = state.nodes[selectedid]
-            state.selectedNodeId = selectedid
-          }
-
-          return
-        }
       }
 
       const rootid = '0'
-      const id = getChildInNode(cursor, scale, rootid, getNode)
+      const id = getChildInNode(cursorCoords, scale, rootid, getNode)
       if (id) {
-        state.movingNode = state.nodes[id]
+        state.draggingNode = state.nodes[id]
         state.selectedNodeId = id
       } else {
-        state.selectedNodeId = undefined
+        state.selectedNodeId = null
       }
     },
     drag: (state, action: PayloadAction<{ x: number; y: number }>) => {
       const { x, y } = action.payload
+
+      if (x === 0 && y === 0) {
+        // cursorが移動していない場合
+        return
+      }
+
       if (state.resizingNode && state.resizingDirection) {
         const direction = state.resizingDirection
         const rNode = state.resizingNode
@@ -304,8 +334,8 @@ export const canvasSlice = createSlice({
             convertBottom(node, rNode.top ?? 0, height)
             break
         }
-      } else if (state.movingNode) {
-        const node = state.movingNode
+      } else if (state.draggingNode) {
+        const node = state.draggingNode
         const scale = state.scale
         const left = Math.round((node.left ?? 0) + x / scale)
         const top = Math.round((node.top ?? 0) + y / scale)
@@ -314,9 +344,9 @@ export const canvasSlice = createSlice({
       }
     },
     dragEnd: (state) => {
-      state.movingNode = undefined
-      state.resizingNode = undefined
-      state.resizingDirection = undefined
+      state.draggingNode = null
+      state.resizingNode = null
+      state.resizingDirection = null
     },
   },
   extraReducers: (builder) => {

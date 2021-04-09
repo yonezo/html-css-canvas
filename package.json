@@ -26,7 +26,7 @@
     "typescript": "^4.1.5"
   },
   "scripts": {
-    "start": "PORT=1234 react-scripts start",
+    "start": "PORT=1234 NODE_ENV=production react-scripts start",
     "test": "react-scripts test"
   },
   "dependencies": {
