@@ -1,4 +1,60 @@
-import { TNode, Direction } from '../types'
+import { TNode, ResizeHandleDirection } from '../types'
+
+// Set left and width or set flip horizontally
+export const setLeftOrFlipHorizontally = (
+  node: TNode,
+  left: number,
+  width: number,
+): void => {
+  if (width > 0) {
+    node.left = left
+    node.width = width
+  } else {
+    node.width = Math.abs(width)
+  }
+}
+
+// Set top and height or set flip vertically
+export const setTopOrFlipVertically = (
+  node: TNode,
+  top: number,
+  height: number,
+): void => {
+  if (height > 0) {
+    node.top = top
+    node.height = height
+  } else {
+    node.height = Math.abs(height)
+  }
+}
+
+// Set width or set flip horizontally
+export const setRightOrFlipHorizontally = (
+  node: TNode,
+  left: number,
+  width: number,
+): void => {
+  if (width > 0) {
+    node.width = width
+  } else {
+    node.left = left - Math.abs(width)
+    node.width = Math.abs(width)
+  }
+}
+
+// Set height or set flip vertically
+export const setBottomOrFlipVertically = (
+  node: TNode,
+  top: number,
+  height: number,
+): void => {
+  if (height > 0) {
+    node.height = height
+  } else {
+    node.top = top - Math.abs(height)
+    node.height = Math.abs(height)
+  }
+}
 
 /**
  * カーソルがリサイズ可能なエリア上に存在する場合、Directionを返す
@@ -14,37 +70,11 @@ export const cursorOnResizableNodeEdge = (
   scale: number,
   resizableNodeId: string,
   getNode: (id: string) => TNode,
-): Direction | undefined => {
+): ResizeHandleDirection | undefined => {
   const node = getNode(resizableNodeId)
   const { left, top } = getAbsoluteOriginOnRoot(scale, node, getNode)
   const { width, height } = getSize(scale, node)
   return getDirectionOfCursorIntersectedResizableEdge(cursor, {
-    left: Math.round(left),
-    top: Math.round(top),
-    width: Math.round(width),
-    height: Math.round(height),
-  })
-}
-
-/**
- * カーソルが移動可能なエリア上に存在しているか
- *
- * @param cursor
- * @param scale
- * @param resizableNodeId リサイズ可能なNodeId
- * @param getNode
- * @returns
- */
-export const cursorOnMovableNode = (
-  cursor: { x: number; y: number },
-  scale: number,
-  movableNodeId: string,
-  getNode: (id: string) => TNode,
-): boolean => {
-  const node = getNode(movableNodeId)
-  const { left, top } = getAbsoluteOriginOnRoot(scale, node, getNode)
-  const { width, height } = getSize(scale, node)
-  return cursorIntersectedFrameWithoutResizableEdge(cursor, {
     left: Math.round(left),
     top: Math.round(top),
     width: Math.round(width),
@@ -122,18 +152,6 @@ const cursorIntersectedFrame = (
   return left <= x && x <= left + width && top <= y && y <= top + height
 }
 
-const cursorIntersectedFrameWithoutResizableEdge = (
-  cursor: { x: number; y: number },
-  frame: { left: number; top: number; width: number; height: number },
-): boolean => {
-  return cursorIntersectedFrame(cursor, {
-    left: frame.left + RESIZE_AREA_SIZE,
-    top: frame.top + RESIZE_AREA_SIZE,
-    width: frame.width - RESIZE_BORDER_SIZE,
-    height: frame.height - RESIZE_BORDER_SIZE,
-  })
-}
-
 /**
  * リサイズ可能なNodeのEdgeと交差したカーソルが示す方向を取得する
  * @param cursor
@@ -143,7 +161,7 @@ const cursorIntersectedFrameWithoutResizableEdge = (
 const getDirectionOfCursorIntersectedResizableEdge = (
   cursor: { x: number; y: number },
   frame: { left: number; top: number; width: number; height: number },
-): Direction | undefined => {
+): ResizeHandleDirection | undefined => {
   const { left, top, width, height } = frame
   const right = left + width
   const bottom = top + height
@@ -209,28 +227,28 @@ const getDirectionOfCursorIntersectedResizableEdge = (
   }
 
   if (cursorOn(topLeftCorner)) {
-    return 'topLeft'
+    return 'nw'
   }
   if (cursorOn(topRightCorner)) {
-    return 'topRight'
+    return 'ne'
   }
   if (cursorOn(bottomLeftCorner)) {
-    return 'bottomLeft'
+    return 'sw'
   }
   if (cursorOn(bottomRightCorner)) {
-    return 'bottomRight'
+    return 'se'
   }
   if (cursorOn(topBorder)) {
-    return 'top'
+    return 'n'
   }
   if (cursorOn(leftBorder)) {
-    return 'left'
+    return 'w'
   }
   if (cursorOn(rightBorder)) {
-    return 'right'
+    return 'e'
   }
   if (cursorOn(bottomBorder)) {
-    return 'bottom'
+    return 's'
   }
 }
 
@@ -287,14 +305,15 @@ const getAbsoluteOriginOnRoot = (
  */
 const getAbsoluteOriginOnCanvas = (
   scale: number,
-  offset: { x: number; y: number },
+  offsetLeft: number,
+  offsetTop: number,
   node: TNode,
   getNode: (id: string) => TNode,
 ): { left: number; top: number } => {
   const ancestorPoint = getAddedAncestorPoint(node, getNode)
   const left =
-    ((ancestorPoint?.left ?? 0) + (node.left ?? 0) + offset.x) * scale
-  const top = ((ancestorPoint?.top ?? 0) + (node.top ?? 0) + offset.y) * scale
+    ((ancestorPoint?.left ?? 0) + (node.left ?? 0) + offsetLeft) * scale
+  const top = ((ancestorPoint?.top ?? 0) + (node.top ?? 0) + offsetTop) * scale
   return { left, top }
 }
 
@@ -319,18 +338,27 @@ const getSize = (
  * Canvasでの絶対座標とサイズを返す
  *
  * @param scale
- * @param node
+ * @param offsetLeft
+ * @param offsetTop
+ * @param id          node id
  * @param parentNode
  * @returns
  */
 export const getAbsoluteFrameOnCanvas = (
   scale: number,
-  offset: { x: number; y: number },
+  offsetLeft: number,
+  offsetTop: number,
   id: string,
   getNode: (id: string) => TNode,
 ): { left: number; top: number; width: number; height: number } => {
   const node = getNode(id)
-  const { left, top } = getAbsoluteOriginOnCanvas(scale, offset, node, getNode)
+  const { left, top } = getAbsoluteOriginOnCanvas(
+    scale,
+    offsetLeft,
+    offsetTop,
+    node,
+    getNode,
+  )
   const { width, height } = getSize(scale, node)
   return {
     left: Math.round(left),
@@ -352,19 +380,21 @@ type ResizeEdge = {
 
 type Cursor = 'nwse-resize' | 'ns-resize' | 'nesw-resize' | 'ew-resize'
 
-export const getCursorFromDirection = (direction: Direction): Cursor => {
+export const getCursorFromDirection = (
+  direction: ResizeHandleDirection,
+): Cursor => {
   switch (direction) {
-    case 'topLeft':
-    case 'bottomRight':
+    case 'nw':
+    case 'se':
       return 'nwse-resize'
-    case 'topRight':
-    case 'bottomLeft':
+    case 'ne':
+    case 'sw':
       return 'nesw-resize'
-    case 'top':
-    case 'bottom':
+    case 'n':
+    case 's':
       return 'ns-resize'
-    case 'left':
-    case 'right':
+    case 'e':
+    case 'w':
       return 'ew-resize'
   }
 }

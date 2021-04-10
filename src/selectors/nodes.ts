@@ -5,26 +5,20 @@ import {
   cursorOnResizableNodeEdge,
 } from '../utils/node'
 
-export const selectHighlightNodeAbsoluteFrame = (
-  state: RootState,
-):
-  | { id: string; left: number; top: number; width: number; height: number }
+export const selectHighlightNodeAbsoluteFrame = ({
+  canvas,
+}: RootState):
+  | { left: number; top: number; width: number; height: number }
   | undefined => {
-  if (Object.keys(state.canvas.nodes).length === 0) return
-
-  const selectedid = state.canvas.selectedNodeId
-  const scale = state.canvas.scale
-  const cursorCoords = state.canvas.cursorCoords
-  const offset = state.canvas.offset
-  const getNode = (id: string) => state.canvas.nodes[id]
+  const getNode = (id: string) => canvas.nodes[id]
   const rootid = '0'
-  if (selectedid) {
+  if (canvas.selectedNodeId) {
     const cursorOnEdge =
       cursorOnResizableNodeEdge(
-        cursorCoords,
-        scale,
-        selectedid,
-        (id) => state.canvas.nodes[id],
+        canvas.cursorCoords,
+        canvas.scale,
+        canvas.selectedNodeId,
+        getNode,
       ) !== undefined
 
     if (cursorOnEdge) {
@@ -32,16 +26,22 @@ export const selectHighlightNodeAbsoluteFrame = (
     }
   }
 
-  const id = getChildInNode(cursorCoords, scale, rootid, getNode)
+  const id = getChildInNode(canvas.cursorCoords, canvas.scale, rootid, getNode)
   if (id) {
-    const frame = getAbsoluteFrameOnCanvas(scale, offset, id, getNode)
-    return { id, ...frame }
+    const frame = getAbsoluteFrameOnCanvas(
+      canvas.scale,
+      canvas.offsetLeft,
+      canvas.offsetTop,
+      id,
+      getNode,
+    )
+    return frame
   }
 }
 
-export const selectSelectNodeAbsoluteFrame = (
-  state: RootState,
-):
+export const selectSelectNodeAbsoluteFrame = ({
+  canvas,
+}: RootState):
   | {
       left: number
       top: number
@@ -49,15 +49,13 @@ export const selectSelectNodeAbsoluteFrame = (
       height: number
     }
   | undefined => {
-  const scale = state.canvas.scale
-  const offset = state.canvas.offset
-  const id = state.canvas.selectedNodeId
-  if (id) {
+  if (canvas.selectedNodeId) {
     const frame = getAbsoluteFrameOnCanvas(
-      scale,
-      offset,
-      id,
-      (id) => state.canvas.nodes[id],
+      canvas.scale,
+      canvas.offsetLeft,
+      canvas.offsetTop,
+      canvas.selectedNodeId,
+      (id) => canvas.nodes[id],
     )
     return frame
   }

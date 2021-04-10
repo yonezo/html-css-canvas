@@ -3,14 +3,19 @@ import { TCavas, TNode } from '../types'
 import { canvasReducer, dragStart, moveCursor } from './canvas'
 
 const defaultState: TCavas = {
-  frame: { x: 0, y: 0, width: 0, height: 0 },
+  isLoading: false,
+  left: 0,
+  top: 0,
+  width: 0,
+  height: 0,
   scale: 1,
-  offset: { x: 0, y: 0 },
+  offsetLeft: 0,
+  offsetTop: 0,
   selectedNodeId: null,
   selectedNodeIds: {},
   draggingNode: null,
   resizingNode: null,
-  resizingDirection: null,
+  resizeHandleDirection: null,
   cursorCoords: { x: 0, y: 0 },
   nodes: {},
 }
@@ -23,13 +28,19 @@ describe('canvas reducer', () => {
           canvasReducer(
             {
               ...defaultState,
-              frame: { x: 200, y: 0, width: 400, height: 0 },
+              left: 200,
+              top: 0,
+              width: 400,
+              height: 0,
             },
             moveCursor({ x: 0, y: 0 }),
           ),
         ).toEqual({
           ...defaultState,
-          frame: { x: 200, y: 0, width: 400, height: 0 },
+          left: 200,
+          top: 0,
+          width: 400,
+          height: 0,
           cursorCoords: { x: -200, y: 0 },
         })
 
@@ -37,13 +48,19 @@ describe('canvas reducer', () => {
           canvasReducer(
             {
               ...defaultState,
-              frame: { x: 200, y: 0, width: 400, height: 0 },
+              left: 200,
+              top: 0,
+              width: 400,
+              height: 0,
             },
             moveCursor({ x: 100, y: 100 }),
           ),
         ).toEqual({
           ...defaultState,
-          frame: { x: 200, y: 0, width: 400, height: 0 },
+          left: 200,
+          top: 0,
+          width: 400,
+          height: 0,
           cursorCoords: { x: -100, y: 100 },
         })
       })
@@ -55,14 +72,20 @@ describe('canvas reducer', () => {
           canvasReducer(
             {
               ...defaultState,
-              frame: { x: 200, y: 0, width: 400, height: 0 },
+              left: 200,
+              top: 0,
+              width: 400,
+              height: 0,
               scale: 0.5,
             },
             moveCursor({ x: 0, y: 0 }),
           ),
         ).toEqual({
           ...defaultState,
-          frame: { x: 200, y: 0, width: 400, height: 0 },
+          left: 200,
+          top: 0,
+          width: 400,
+          height: 0,
           cursorCoords: { x: -200, y: 0 },
           scale: 0.5,
         })
@@ -71,14 +94,20 @@ describe('canvas reducer', () => {
           canvasReducer(
             {
               ...defaultState,
-              frame: { x: 200, y: 0, width: 400, height: 0 },
+              left: 200,
+              top: 0,
+              width: 400,
+              height: 0,
               scale: 1.5,
             },
             moveCursor({ x: 0, y: 0 }),
           ),
         ).toEqual({
           ...defaultState,
-          frame: { x: 200, y: 0, width: 400, height: 0 },
+          left: 200,
+          top: 0,
+          width: 400,
+          height: 0,
           cursorCoords: { x: -200, y: 0 },
           scale: 1.5,
         })
@@ -91,16 +120,24 @@ describe('canvas reducer', () => {
           canvasReducer(
             {
               ...defaultState,
-              frame: { x: 200, y: 0, width: 400, height: 0 },
-              offset: { x: 200, y: 200 },
+              left: 200,
+              top: 0,
+              width: 400,
+              height: 0,
+              offsetLeft: 200,
+              offsetTop: 200,
               scale: 0.5,
             },
             moveCursor({ x: 0, y: 0 }),
           ),
         ).toEqual({
           ...defaultState,
-          frame: { x: 200, y: 0, width: 400, height: 0 },
-          offset: { x: 200, y: 200 },
+          left: 200,
+          top: 0,
+          width: 400,
+          height: 0,
+          offsetLeft: 200,
+          offsetTop: 200,
           cursorCoords: { x: -300, y: -100 },
           scale: 0.5,
         })
@@ -109,16 +146,23 @@ describe('canvas reducer', () => {
           canvasReducer(
             {
               ...defaultState,
-              frame: { x: 200, y: 0, width: 400, height: 0 },
-              offset: { x: 200, y: 200 },
+              left: 200,
+              top: 0,
+              width: 400,
+              height: 0,
+              offsetLeft: 200,
+              offsetTop: 200,
               scale: 1.5,
             },
             moveCursor({ x: 0, y: 0 }),
           ),
         ).toEqual({
           ...defaultState,
-          frame: { x: 200, y: 0, width: 400, height: 0 },
-          offset: { x: 200, y: 200 },
+          left: 200,
+          width: 400,
+          height: 0,
+          offsetLeft: 200,
+          offsetTop: 200,
           cursorCoords: { x: -500, y: -300 },
           scale: 1.5,
         })
@@ -271,7 +315,7 @@ describe('canvas reducer', () => {
           nodes,
           selectedNodeId: '1',
           resizingNode: nodes['1'],
-          resizingDirection: 'topLeft',
+          resizeHandleDirection: 'nw',
         })
       })
     })
@@ -439,7 +483,7 @@ describe('canvas reducer', () => {
           nodes,
           selectedNodeId: '1',
           resizingNode: nodes['1'],
-          resizingDirection: 'topLeft',
+          resizeHandleDirection: 'nw',
         })
       })
     })

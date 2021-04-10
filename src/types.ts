@@ -17,27 +17,34 @@ export type TNode = {
   children: string[]
 }
 
-export type Direction =
-  | 'top'
-  | 'right'
-  | 'bottom'
-  | 'left'
-  | 'topRight'
-  | 'bottomRight'
-  | 'bottomLeft'
-  | 'topLeft'
+export type ResizeHandleDirection =
+  | 'n'
+  | 's'
+  | 'w'
+  | 'e'
+  | 'nw'
+  | 'ne'
+  | 'sw'
+  | 'se'
 
-type PointerCoords = { x: number; y: number }
+export type CursorCoords = { x: number; y: number }
 
 export type TCavas = {
-  frame: { x: number; y: number; width: number; height: number }
+  isLoading: boolean
+  width: number
+  height: number
+  left: number
+  top: number
   scale: number
-  offset: { x: number; y: number }
-  cursorCoords: PointerCoords
+  offsetLeft: number
+  offsetTop: number
+  cursorCoords: CursorCoords
   resizingNode: TNode | null
   draggingNode: TNode | null
-  resizingDirection: Direction | null
+  resizeHandleDirection: ResizeHandleDirection | null
   selectedNodeId: string | null
   selectedNodeIds: { [id: string]: boolean }
   nodes: { [id: string]: TNode }
 }
+
+export type NormalizedZoomValue = number & { _brand: 'normalizedZoom' }

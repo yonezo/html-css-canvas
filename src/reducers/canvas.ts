@@ -1,25 +1,34 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 
-import { TCavas, TNode } from '../types'
+import { TCavas } from '../types'
 import {
   cursorOnResizableNodeEdge,
-  cursorOnMovableNode,
   getChildInNode,
+  setLeftOrFlipHorizontally,
+  setTopOrFlipVertically,
+  setRightOrFlipHorizontally,
+  setBottomOrFlipVertically,
 } from '../utils/node'
+import { getNewScale, getOffsetWithScale } from '../utils/canvas'
 
 import { initialize } from './initializeState'
 import { isNodeAction } from './actions/nodes'
 import { nodeReducer } from './nodes'
 
 const initialState: TCavas = {
-  frame: { x: 0, y: 0, width: 0, height: 0 },
+  isLoading: false,
+  width: 0,
+  height: 0,
+  left: 0,
+  top: 0,
   scale: 1,
-  offset: { x: 0, y: 0 },
+  offsetLeft: 0,
+  offsetTop: 0,
   selectedNodeId: null,
   selectedNodeIds: {},
   draggingNode: null,
   resizingNode: null,
-  resizingDirection: null,
+  resizeHandleDirection: null,
   cursorCoords: { x: 0, y: 0 },
   nodes: {
     '0': {
@@ -123,46 +132,6 @@ const initialState: TCavas = {
   },
 }
 
-const STEP = 0.1
-const MAX_SCALE = 5
-const MIN_SCALE = 0.25
-
-const convertLeft = (node: TNode, left: number, width: number) => {
-  if (width > 0) {
-    node.left = left
-    node.width = width
-  } else {
-    node.width = Math.abs(width)
-  }
-}
-
-const convertTop = (node: TNode, top: number, height: number) => {
-  if (height > 0) {
-    node.top = top
-    node.height = height
-  } else {
-    node.height = Math.abs(height)
-  }
-}
-
-const convertRight = (node: TNode, left: number, width: number) => {
-  if (width > 0) {
-    node.width = width
-  } else {
-    node.left = left - Math.abs(width)
-    node.width = Math.abs(width)
-  }
-}
-
-const convertBottom = (node: TNode, top: number, height: number) => {
-  if (height > 0) {
-    node.height = height
-  } else {
-    node.top = top - Math.abs(height)
-    node.height = Math.abs(height)
-  }
-}
-
 const hasNodes = (state: TCavas) => Object.keys(state.nodes).length > 0
 
 const hasDraggingNode = (state: TCavas) =>
@@ -184,7 +153,8 @@ export const canvasSlice = createSlice({
         id: string | null
       }>,
     ) => {
-      state.selectedNodeId = action.payload.id
+      const { id } = action.payload
+      state.selectedNodeId = id
     },
     moveCursor: (
       state,
@@ -194,87 +164,133 @@ export const canvasSlice = createSlice({
       }>,
     ) => {
       const { x, y } = action.payload
-      const originX = x - state.frame.x
-      const originY = y - state.frame.y
-      const convertedX = originX - state.offset.x * state.scale
-      const convertedY = originY - state.offset.y * state.scale
+      const left = x - state.left
+      const top = y - state.top
+      const convertedX = left - state.offsetLeft * state.scale
+      const convertedY = top - state.offsetTop * state.scale
       state.cursorCoords = { x: convertedX, y: convertedY }
     },
-    updateFrame: (
+    scrollToCenter: (
       state,
       action: PayloadAction<{
-        x: number
-        y: number
+        left: number
+        top: number
         width: number
         height: number
       }>,
     ) => {
-      state.frame = action.payload
+      const { width, height, left, top } = action.payload
+      const { scale, nodes } = state
+      const root = nodes['0']
+      const offsetLeft = root
+        ? width / 2 - (root.width / 2 - (root.left ?? 0)) * scale
+        : state.offsetLeft
+      const offsetTop = root
+        ? height / 2 - (root.height / 2 - (root.top ?? 0)) * scale
+        : state.offsetTop
+      return { ...state, width, height, left, top, offsetLeft, offsetTop }
     },
-    updateScale: (state, action: PayloadAction<{ scale: number }>) => {
-      const { scale } = action.payload
-      state.scale = scale
-    },
-    updateOffset: (state, action: PayloadAction<{ x: number; y: number }>) => {
-      state.offset = action.payload
+    resizeCanvas: (
+      state,
+      action: PayloadAction<{
+        left: number
+        top: number
+        width: number
+        height: number
+      }>,
+    ) => {
+      const { width, height, left, top } = action.payload
+      const ratioX = width / state.width
+      const ratioY = height / state.height
+      const offsetLeft = state.offsetLeft * ratioX
+      const offsetTop = state.offsetTop * ratioY
+      return { ...state, width, height, left, top, offsetLeft, offsetTop }
     },
     pinch: (
       state,
       action: PayloadAction<{
-        offset: [number, number]
+        delta: [number, number]
       }>,
     ) => {
-      const [d] = action.payload.offset
-      const newScale = 1 + (d / 50) * STEP
-
-      if (MAX_SCALE <= newScale || MIN_SCALE >= newScale) return
-      const frame = state.frame
-      const scale = state.scale
-      const offset = state.offset
-
-      const width = frame.width / scale
-      const height = frame.height / scale
-
-      const newWidth = frame.width / newScale
-      const newHeight = frame.height / newScale
-
-      const diffWidth = width - newWidth
-      const diffHeight = height - newHeight
-
-      state.offset = {
-        x: offset.x - diffWidth / 2,
-        y: offset.y - diffHeight / 2,
+      const {
+        delta: [d],
+      } = action.payload
+      const newScale = getNewScale(1, d)
+      const { offsetLeft, offsetTop } = getOffsetWithScale(
+        state.width,
+        state.height,
+        state.offsetLeft,
+        state.offsetTop,
+        state.scale,
+        newScale,
+      )
+      return { ...state, offsetLeft, offsetTop, scale: newScale }
+    },
+    wheel: (
+      state,
+      action: PayloadAction<{
+        delta: [number, number]
+        metaKey: boolean
+        ctrlKey: boolean
+      }>,
+    ) => {
+      const {
+        delta: [deltaX, deltaY],
+        metaKey,
+        ctrlKey,
+      } = action.payload
+      if (metaKey || ctrlKey) {
+        const newScale = getNewScale(state.scale, deltaY)
+        const { offsetLeft, offsetTop } = getOffsetWithScale(
+          state.width,
+          state.height,
+          state.offsetLeft,
+          state.offsetTop,
+          state.scale,
+          newScale,
+        )
+        return { ...state, offsetLeft, offsetTop, scale: newScale }
+      } else {
+        const offsetLeft = state.offsetLeft - deltaX / state.scale
+        const offsetTop = state.offsetTop - deltaY / state.scale
+        return { ...state, offsetLeft, offsetTop }
       }
-      state.scale = newScale
     },
     dragStart: (state) => {
-      if (!isDragStartEnabled(state)) return
-
-      const cursorCoords = state.cursorCoords
-      const scale = state.scale
-      const selectedid = state.selectedNodeId
+      if (!isDragStartEnabled(state)) {
+        return
+      }
+      const { cursorCoords, scale } = state
       const getNode = (id: string) => state.nodes[id]
-      if (selectedid) {
-        const direction = cursorOnResizableNodeEdge(
-          cursorCoords,
-          scale,
-          selectedid,
+      if (state.selectedNodeId) {
+        const resizeHandleDirection = cursorOnResizableNodeEdge(
+          state.cursorCoords,
+          state.scale,
+          state.selectedNodeId,
           getNode,
         )
-        if (direction) {
-          state.resizingNode = state.nodes[selectedid]
-          state.resizingDirection = direction
-          return
+        if (resizeHandleDirection) {
+          return {
+            ...state,
+            resizingNode: state.nodes[state.selectedNodeId],
+            resizeHandleDirection,
+          }
         }
       }
 
       const rootid = '0'
       const id = getChildInNode(cursorCoords, scale, rootid, getNode)
       if (id) {
-        state.draggingNode = state.nodes[id]
-        state.selectedNodeId = id
+        return {
+          ...state,
+          draggingNode: state.nodes[id],
+          selectedNodeId: id,
+        }
       } else {
-        state.selectedNodeId = null
+        return {
+          ...state,
+          selectedNodeId: null,
+        }
       }
     },
     drag: (state, action: PayloadAction<{ x: number; y: number }>) => {
@@ -285,68 +301,49 @@ export const canvasSlice = createSlice({
         return
       }
 
-      if (state.resizingNode && state.resizingDirection) {
-        const direction = state.resizingDirection
-        const rNode = state.resizingNode
-        const node = state.nodes[rNode.id]
-        const scale = state.scale
-        const left = Math.round((rNode.left ?? 0) + x / scale)
-        const top = Math.round((rNode.top ?? 0) + y / scale)
-        const width =
-          direction === 'left' ||
-          direction === 'topLeft' ||
-          direction === 'bottomLeft'
-            ? Math.round(rNode.width - x / scale)
-            : Math.round(rNode.width + x / scale)
-        const height =
-          direction === 'top' ||
-          direction === 'topLeft' ||
-          direction === 'topRight'
-            ? Math.round(rNode.height - y / scale)
-            : Math.round(rNode.height + y / scale)
-        switch (direction) {
-          case 'left':
-            convertLeft(node, left, width)
-            break
-          case 'top':
-            convertTop(node, top, height)
-            break
-          case 'right':
-            convertRight(node, rNode.left ?? 0, width)
-            break
-          case 'bottom':
-            convertBottom(node, rNode.top ?? 0, height)
-            break
-          case 'topLeft':
-            convertLeft(node, left, width)
-            convertTop(node, top, height)
-            break
-          case 'topRight':
-            convertTop(node, top, height)
-            convertRight(node, rNode.left ?? 0, width)
-            break
-          case 'bottomRight':
-            convertRight(node, rNode.left ?? 0, width)
-            convertBottom(node, rNode.top ?? 0, height)
-            break
-          case 'bottomLeft':
-            convertLeft(node, left, width)
-            convertBottom(node, rNode.top ?? 0, height)
-            break
+      if (state.resizingNode && state.resizeHandleDirection) {
+        const prevWidth = state.resizingNode.width,
+          prevHeight = state.resizingNode.height,
+          prevLeft = state.resizingNode.left ?? 0,
+          prevTop = state.resizingNode.top ?? 0
+        const node = state.nodes[state.resizingNode.id]
+        const newLeft = Math.round(prevLeft + x / state.scale)
+        const newTop = Math.round(prevTop + y / state.scale)
+        const newWidth = state.resizeHandleDirection.includes('w')
+          ? Math.round(prevWidth - x / state.scale)
+          : Math.round(prevWidth + x / state.scale)
+        const newHeight = state.resizeHandleDirection.includes('n')
+          ? Math.round(prevHeight - y / state.scale)
+          : Math.round(prevHeight + y / state.scale)
+        if (state.resizeHandleDirection.includes('w')) {
+          setLeftOrFlipHorizontally(node, newLeft, newWidth)
+        }
+        if (state.resizeHandleDirection.includes('n')) {
+          setTopOrFlipVertically(node, newTop, newHeight)
+        }
+        if (state.resizeHandleDirection.includes('e')) {
+          setRightOrFlipHorizontally(node, prevLeft, newWidth)
+        }
+        if (state.resizeHandleDirection.includes('s')) {
+          setBottomOrFlipVertically(node, prevTop, newHeight)
         }
       } else if (state.draggingNode) {
-        const node = state.draggingNode
-        const scale = state.scale
-        const left = Math.round((node.left ?? 0) + x / scale)
-        const top = Math.round((node.top ?? 0) + y / scale)
-        state.nodes[node.id].left = left
-        state.nodes[node.id].top = top
+        const prevLeft = state.draggingNode.left ?? 0,
+          prevTop = state.draggingNode.top ?? 0
+        const newLeft = Math.round(prevLeft + x / state.scale)
+        const newTop = Math.round(prevTop + y / state.scale)
+        const node = state.nodes[state.draggingNode.id]
+        node.left = newLeft
+        node.top = newTop
       }
     },
     dragEnd: (state) => {
-      state.draggingNode = null
-      state.resizingNode = null
-      state.resizingDirection = null
+      return {
+        ...state,
+        draggingNode: null,
+        resizingNode: null,
+        resizeHandleDirection: null,
+      }
     },
   },
   extraReducers: (builder) => {
@@ -369,11 +366,11 @@ export const {
   initializeNodes,
   selectNode,
   moveCursor,
-  updateFrame,
-  updateScale,
-  updateOffset,
+  scrollToCenter,
+  resizeCanvas,
   drag,
   dragStart,
   dragEnd,
+  wheel,
   pinch,
 } = canvasSlice.actions

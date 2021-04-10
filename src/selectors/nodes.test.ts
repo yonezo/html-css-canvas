@@ -62,14 +62,19 @@ const nodes: { [key: string]: TNode } = {
 }
 
 const canvasState: TCavas = {
-  frame: { x: 0, y: 0, width: 0, height: 0 },
+  isLoading: false,
+  left: 0,
+  top: 0,
+  width: 0,
+  height: 0,
   scale: 1,
-  offset: { x: 0, y: 0 },
+  offsetLeft: 0,
+  offsetTop: 0,
   selectedNodeId: null,
   selectedNodeIds: {},
   draggingNode: null,
   resizingNode: null,
-  resizingDirection: null,
+  resizeHandleDirection: null,
   cursorCoords: { x: 0, y: 0 },
   nodes,
 }
@@ -79,12 +84,12 @@ it('カーソルがNodeの上にある場合は、ハイライトさせる', () 
     canvas: {
       ...canvasState,
       scale: 1.5,
-      offset: { x: 40, y: 40 },
+      offsetLeft: 40,
+      offsetTop: 40,
       cursorCoords: { x: 150, y: 200 },
     },
   })
   expect(receive).toEqual({
-    id: '3',
     left: 173,
     top: 210,
     width: 75,
@@ -109,7 +114,6 @@ it('選択している要素の外にカーソルがある場合は、ハイラ�
     },
   })
   expect(receive).toEqual({
-    id: '1',
     left: 0,
     top: 0,
     width: 200,
@@ -127,7 +131,6 @@ it('選択している要素の子要素の上にカーソルがある場合は�
     },
   })
   expect(receive).toEqual({
-    id: '3',
     left: 75,
     top: 100,
     width: 50,
@@ -203,7 +206,6 @@ it('他の要素と重なっている場合は上にある要素をハイライ�
     },
   })
   expect(receive).toEqual({
-    id: '3',
     left: 75,
     top: 100,
     width: 50,
@@ -217,12 +219,12 @@ it('他の要素と重なっている場合は上にある要素をハイライ�
       ...canvasState,
       nodes,
       scale: 1.5,
-      offset: { x: 30, y: 30 },
+      offsetLeft: 30,
+      offsetTop: 30,
       cursorCoords: { x: 120, y: 310 },
     },
   })
   expect(receive).toEqual({
-    id: '2',
     left: 45,
     top: 345,
     width: 300,
@@ -293,7 +295,8 @@ it('選択状態でリサイズ可能なNodeの下に接しているNodeの上�
     canvas: {
       ...canvasState,
       nodes,
-      offset: { x: 30, y: 30 },
+      offsetLeft: 30,
+      offsetTop: 30,
       selectedNodeId: '3',
       cursorCoords: { x: 100, y: 202 },
     },
@@ -414,7 +417,6 @@ describe('選択しているNode上に子Node以外が重なっている場合',
     })
 
     expect(receive).toEqual({
-      id: '6',
       left: 20,
       top: 30,
       width: 160,
