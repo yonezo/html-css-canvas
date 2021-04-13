@@ -1,6 +1,5 @@
 import { TCavas, TNode } from '../types'
-
-import { canvasReducer, dragStart, moveCursor } from './canvas'
+import { canvasReducer, dragStart, moveCursor } from '../reducers/canvas'
 
 const defaultState: TCavas = {
   isLoading: false,
